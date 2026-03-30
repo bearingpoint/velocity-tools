@@ -447,116 +447,87 @@ public final class XmlUtils
         return ret;
     }
 
-    /**
-     * <p>Builds the xpath expression for a node (tries to use id/name nodes when possible to get a unique path)</p>
-     * @param n target node
-     * @return node xpath
-     */
-    // (borrow from http://stackoverflow.com/questions/5046174/get-xpath-from-the-org-w3c-dom-node )
-    public static String nodePath(Node n)
+	private static Node getParent(Node node) {
+		switch (node.getNodeType()) {
+			case Node.ATTRIBUTE_NODE:
+				return ((Attr) node).getOwnerElement();
+			case Node.ELEMENT_NODE:
+				return node.getParentNode();
+			case Node.DOCUMENT_NODE:
+				return node.getParentNode();
+			default:
+				throw new IllegalStateException("Unexpected Node type" + node.getNodeType());
+		}
+	}
+
+    public static String pathOfNode(Node theNode)
     {
-        // abort early
-        if (null == n)
+        if (null == theNode) {
             return null;
+		}
 
-        // declarations
-        Node parent = null;
-        Stack<Node> hierarchy = new Stack<Node>();
-        StringBuffer buffer = new StringBuffer('/');
+        Stack<Node> nodesHierarchy = new Stack<Node>();
+        StringBuffer strBuff = new StringBuffer('/');
+        Node parent = getParent(theNode);
 
-        // push element on stack
-        hierarchy.push(n);
-
-        switch (n.getNodeType()) {
-            case Node.ATTRIBUTE_NODE:
-                parent = ((Attr) n).getOwnerElement();
-                break;
-            case Node.ELEMENT_NODE:
-                parent = n.getParentNode();
-                break;
-            case Node.DOCUMENT_NODE:
-                parent = n.getParentNode();
-                break;
-            default:
-                throw new IllegalStateException("Unexpected Node type" + n.getNodeType());
-        }
+        nodesHierarchy.push(theNode);
 
         while (null != parent && parent.getNodeType() != Node.DOCUMENT_NODE) {
-            // push on stack
-            hierarchy.push(parent);
-
-            // get parent of parent
+            nodesHierarchy.push(parent);
             parent = parent.getParentNode();
         }
 
-        // construct xpath
         Object obj = null;
-        while (!hierarchy.isEmpty() && null != (obj = hierarchy.pop())) {
+        while (!nodesHierarchy.isEmpty() && null != (obj = nodesHierarchy.pop())) {
             Node node = (Node) obj;
-            boolean handled = false;
+            boolean visited = false;
 
             if (node.getNodeType() == Node.ELEMENT_NODE)
             {
                 Element e = (Element) node;
-
-                // is this the root element?
-                if (buffer.length() == 1)
+                if (strBuff.length() == 1)
                 {
-                    // root element - simply append element name
-                    buffer.append(node.getNodeName());
-                }
-                else
-                {
-                    // child element - append slash and element name
-                    buffer.append("/");
-                    buffer.append(node.getNodeName());
+                    strBuff.append(node.getNodeName());
+                } else  {
+                    strBuff.append("/" + node.getNodeName());
 
-                    if (node.hasAttributes())
+                    if (node.hasAttributes() && node.getAttributes().getLength() > 0)
                     {
-                        // see if the element has a name or id attribute
                         if (e.hasAttribute("id"))
                         {
-                            // id attribute found - use that
-                            buffer.append("[@id='" + e.getAttribute("id") + "']");
-                            handled = true;
+                            strBuff.append("[@id='" + e.getAttribute("id") + "']");
+                            visited = true;
                         }
                         else if (e.hasAttribute("name"))
                         {
-                            // name attribute found - use that
-                            buffer.append("[@name='" + e.getAttribute("name") + "']");
-                            handled = true;
+                            strBuff.append("[@name='" + e.getAttribute("name") + "']");
+                            visited = true;
                         }
                     }
 
-                    if (!handled)
+                    if (!visited)
                     {
-                        // no known attribute we could use - get sibling index
-                        int prev_siblings = 1;
-                        Node prev_sibling = node.getPreviousSibling();
-                        while (null != prev_sibling)
+                        int siblingsCount = 1;
+                        Node sibling = node.getPreviousSibling();
+                        while (null != sibling)
                         {
-                            if (prev_sibling.getNodeType() == node.getNodeType())
-                            {
-                                if (prev_sibling.getNodeName().equalsIgnoreCase(
-                                    node.getNodeName()))
-                                {
-                                    prev_siblings++;
-                                }
+                            if (sibling.getNodeType() == node.getNodeType() && sibling.getNodeName().equalsIgnoreCase(
+										node.getNodeName())) {
+                                    siblingsCount++;
                             }
-                            prev_sibling = prev_sibling.getPreviousSibling();
+                            sibling = sibling.getPreviousSibling();
                         }
-                        buffer.append("[" + prev_siblings + "]");
+                        strBuff.append("[" + siblingsCount + "]");
                     }
                 }
             }
             else if (node.getNodeType() == Node.ATTRIBUTE_NODE)
             {
-                buffer.append("/@");
-                buffer.append(node.getNodeName());
+                strBuff.append("/@");
+                strBuff.append(node.getNodeName());
             }
         }
-        // return buffer
-        return buffer.toString();
+        return strBuff.toString();
     }
 
     /**

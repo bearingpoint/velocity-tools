@@ -367,7 +367,7 @@ public class XmlTool extends SafeConfig implements Serializable
         {
             return null;
         }
-        return XmlUtils.nodePath(node());
+        return XmlUtils.pathOfNode(node());
     }
 
     /**
