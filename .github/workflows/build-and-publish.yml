@@ -34,8 +34,6 @@ jobs:
           distribution: "temurin"
           java-version: "11"
           server-id: github
-          server-username: GITHUB_ACTOR
-          server-password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub Packages
         run: mvn -B deploy --file pom.xml -DskipTests
